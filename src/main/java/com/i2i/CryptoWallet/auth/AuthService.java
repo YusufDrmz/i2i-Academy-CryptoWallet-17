@@ -11,9 +11,12 @@ import com.i2i.CryptoWallet.user.User;
 import com.i2i.CryptoWallet.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -83,6 +86,10 @@ public class AuthService {
 
         String token = sessionService.createSession(user.getId());
         return new AuthResponse(token, user.getId(), user.getUsername(), sessionService.getTtlSeconds());
+    }
+
+    public void logout(String token) {
+        sessionService.invalidateSession(token);
     }
 
     private BigDecimal randomStartingBalance() {
