@@ -1,7 +1,9 @@
 package com.i2i.CryptoWallet.market;
 
+import com.i2i.CryptoWallet.common.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -58,7 +60,7 @@ public class MarketDataService {
     public BigDecimal getPrice(String asset) {
         String priceStr = redisTemplate.opsForValue().get(REDIS_PRICE_PREFIX + asset);
         if (priceStr == null) {
-            throw new IllegalArgumentException("Price not found for asset: " + asset);
+            throw new ApiException(HttpStatus.NOT_FOUND, "Price not found for asset: " + asset);
         }
         return new BigDecimal(priceStr);
     }

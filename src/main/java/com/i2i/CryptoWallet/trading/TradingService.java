@@ -1,11 +1,13 @@
 package com.i2i.CryptoWallet.trading;
 
+import com.i2i.CryptoWallet.common.exception.ApiException;
 import com.i2i.CryptoWallet.market.MarketDataService;
 import com.i2i.CryptoWallet.user.Balance;
 import com.i2i.CryptoWallet.user.BalanceRepository;
 import com.i2i.CryptoWallet.user.User;
 import com.i2i.CryptoWallet.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,16 +27,16 @@ public class TradingService {
     @Transactional
     public Transaction buy(Long userId, String asset, BigDecimal amountToBuy) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found"));
 
         BigDecimal currentPrice = marketDataService.getPrice(asset);
         BigDecimal totalCost = amountToBuy.multiply(currentPrice);
 
         Balance fiatBalance = balanceRepository.findByUserIdAndCurrency(userId, FIAT_CURRENCY)
-                .orElseThrow(() -> new IllegalArgumentException("Fiat balance not found"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Fiat balance not found"));
 
         if (fiatBalance.getAmount().compareTo(totalCost) < 0) {
-            throw new IllegalArgumentException("Insufficient funds to complete this trade");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Insufficient funds to complete this trade");
         }
 
         fiatBalance.setAmount(fiatBalance.getAmount().subtract(totalCost));
@@ -66,23 +68,23 @@ public class TradingService {
     @Transactional
     public Transaction sell(Long userId, String asset, BigDecimal amountToSell) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found"));
 
         BigDecimal currentPrice = marketDataService.getPrice(asset);
         BigDecimal totalValue = amountToSell.multiply(currentPrice);
 
         Balance cryptoBalance = balanceRepository.findByUserIdAndCurrency(userId, asset)
-                .orElseThrow(() -> new IllegalArgumentException("Crypto balance not found"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Crypto balance not found"));
 
         if (cryptoBalance.getAmount().compareTo(amountToSell) < 0) {
-            throw new IllegalArgumentException("Insufficient crypto balance to complete this trade");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Insufficient crypto balance to complete this trade");
         }
 
         cryptoBalance.setAmount(cryptoBalance.getAmount().subtract(amountToSell));
         balanceRepository.save(cryptoBalance);
 
         Balance fiatBalance = balanceRepository.findByUserIdAndCurrency(userId, FIAT_CURRENCY)
-                .orElseThrow(() -> new IllegalArgumentException("Fiat balance not found"));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Fiat balance not found"));
         
         fiatBalance.setAmount(fiatBalance.getAmount().add(totalValue));
         balanceRepository.save(fiatBalance);
