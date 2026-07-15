@@ -9,8 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/ai")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/ai")
 public class AiController {
 
     private final GeminiService geminiService;

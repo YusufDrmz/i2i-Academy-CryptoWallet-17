@@ -3,6 +3,7 @@ import api from '../services/api'
 
 function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState('')
@@ -12,10 +13,17 @@ function LoginPage({ onLogin }) {
     setLoading(true)
     setError('')
     try {
-      const endpoint = isRegister ? '/auth/register' : '/auth/login'
-      const response = await api.post(endpoint, { username, password })
-      localStorage.setItem('token', response.data.token)
-      onLogin(response.data)
+      if (isRegister) {
+        const response = await api.post('/auth/register', { username, email, password })
+        // After register, auto login
+        const loginResponse = await api.post('/auth/login', { username, password })
+        localStorage.setItem('token', loginResponse.data.token)
+        onLogin(loginResponse.data)
+      } else {
+        const response = await api.post('/auth/login', { username, password })
+        localStorage.setItem('token', response.data.token)
+        onLogin(response.data)
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred')
     } finally {
@@ -46,6 +54,17 @@ function LoginPage({ onLogin }) {
           onChange={(e) => setUsername(e.target.value)}
           className="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 outline-none focus:ring-2 focus:ring-green-400"
         />
+
+        {isRegister && (
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full bg-gray-700 text-white p-3 rounded-lg mb-4 outline-none focus:ring-2 focus:ring-green-400"
+          />
+        )}
+
         <input
           type="password"
           placeholder="Password"
