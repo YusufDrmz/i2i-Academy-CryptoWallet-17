@@ -2,6 +2,9 @@ package com.i2i.CryptoWallet.ai.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.i2i.CryptoWallet.market.MarketDataService;
+import com.i2i.CryptoWallet.trading.Transaction;
+import com.i2i.CryptoWallet.trading.TransactionRepository;
 import com.i2i.CryptoWallet.user.Balance;
 import com.i2i.CryptoWallet.user.BalanceRepository;
 import com.i2i.CryptoWallet.user.User;
@@ -9,11 +12,13 @@ import com.i2i.CryptoWallet.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -32,16 +37,22 @@ public class GeminiService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final UserRepository userRepository;
     private final BalanceRepository balanceRepository;
+    private final TransactionRepository transactionRepository;
+    private final MarketDataService marketDataService;
 
-    public GeminiService(UserRepository userRepository, BalanceRepository balanceRepository) {
+    public GeminiService(UserRepository userRepository,
+                         BalanceRepository balanceRepository,
+                         TransactionRepository transactionRepository,
+                         MarketDataService marketDataService) {
         this.userRepository = userRepository;
         this.balanceRepository = balanceRepository;
+        this.transactionRepository = transactionRepository;
+        this.marketDataService = marketDataService;
     }
 
     // Build context from user data and send to Gemini
     public String askGemini(String userQuery, Long userId) {
         try {
-            // Enrich prompt with user context
             String context = buildUserContext(userId);
 
             String prompt = """
@@ -61,7 +72,7 @@ public class GeminiService {
         }
     }
 
-    // Gather user account details for context enrichment
+    // Gather user account details, transactions and live prices for context enrichment
     private String buildUserContext(Long userId) {
         if (userId == null) {
             return "No user context available.";
@@ -84,6 +95,34 @@ public class GeminiService {
                     context.append("- ").append(balance.getCurrency())
                             .append(": ").append(balance.getAmount()).append("\n")
             );
+        }
+
+        // Add last 5 transactions
+        List<Transaction> transactions = transactionRepository
+                .findByUserIdOrderByCreatedAtDesc(userId);
+        if (!transactions.isEmpty()) {
+            context.append("Recent transactions (last 5):\n");
+            transactions.stream().limit(5).forEach(tx ->
+                    context.append("- ").append(tx.getType())
+                            .append(" ").append(tx.getAmount())
+                            .append(" ").append(tx.getAsset())
+                            .append(" at $").append(tx.getPrice())
+                            .append(" on ").append(tx.getCreatedAt()).append("\n")
+            );
+        }
+
+        // Add live prices from Redis
+        try {
+            Map<String, BigDecimal> prices = marketDataService.getLatestPrices();
+            if (!prices.isEmpty()) {
+                context.append("Current market prices:\n");
+                prices.forEach((asset, price) ->
+                        context.append("- ").append(asset)
+                                .append(": $").append(price).append("\n")
+                );
+            }
+        } catch (Exception e) {
+            context.append("Live prices temporarily unavailable.\n");
         }
 
         return context.toString();

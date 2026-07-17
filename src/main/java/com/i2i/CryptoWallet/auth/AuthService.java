@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.List;
 
 @Service
 public class AuthService {
@@ -36,6 +37,22 @@ public class AuthService {
 
     private final BigDecimal initialBalanceMin;
     private final BigDecimal initialBalanceMax;
+
+    public List<Balance> getBalances(Long userId) {
+        return balanceRepository.findByUserId(userId);
+    }
+
+    public UserResponse getUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found"));
+
+        BigDecimal balance = balanceRepository.findByUserIdAndCurrency(userId, FIAT_CURRENCY)
+                .map(Balance::getAmount)
+                .orElse(BigDecimal.ZERO);
+
+        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(),
+                balance, user.getCreatedAt());
+    }
 
     public AuthService(UserRepository userRepository,
                         BalanceRepository balanceRepository,

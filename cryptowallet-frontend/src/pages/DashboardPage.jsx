@@ -6,24 +6,55 @@ function DashboardPage({ user, onLogout }) {
   const [prices, setPrices] = useState([])
   const [showChat, setShowChat] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [userBalance, setUserBalance] = useState(0)
+  const [cryptoBalances, setCryptoBalances] = useState({})
   const [selectedCrypto, setSelectedCrypto] = useState(null)
   const [tradeType, setTradeType] = useState('')
   const [tradeAmount, setTradeAmount] = useState('')
   const [tradeError, setTradeError] = useState('')
   const [tradeLoading, setTradeLoading] = useState(false)
 
-  // Fetch prices on load and every 15 seconds
+  // Fetch prices and balance on load and every 15 seconds
   useEffect(() => {
     fetchPrices()
-    const interval = setInterval(fetchPrices, 15000)
+    fetchUserBalance()
+    const interval = setInterval(() => {
+      fetchPrices()
+      fetchUserBalance()
+    }, 15000)
     return () => clearInterval(interval)
   }, [])
+
+  // Fetch current user balance and crypto holdings
+  const fetchUserBalance = async () => {
+    try {
+      const response = await api.get('/auth/me')
+      setUserBalance(response.data.balance)
+
+      // Fetch crypto balances
+      const balancesResponse = await api.get('/auth/balances')
+      const cryptoMap = {}
+      balancesResponse.data.forEach(b => {
+        if (b.currency !== 'USD') {
+          cryptoMap[b.currency] = b.amount
+        }
+      })
+      setCryptoBalances(cryptoMap)
+    } catch (err) {
+      console.error('Failed to fetch balance:', err)
+    }
+  }
 
   const fetchPrices = async () => {
     setLoading(true)
     try {
       const response = await api.get('/market/prices')
-      setPrices(response.data)
+      // Convert object to array format
+      const pricesArray = Object.entries(response.data).map(([symbol, price]) => ({
+        symbol,
+        price,
+      }))
+      setPrices(pricesArray)
     } catch (err) {
       console.error('Failed to fetch prices:', err)
     } finally {
@@ -42,13 +73,14 @@ function DashboardPage({ user, onLogout }) {
     setTradeLoading(true)
     setTradeError('')
     try {
-      await api.post('/trading/execute', {
+      const endpoint = tradeType === 'BUY' ? '/trading/buy' : '/trading/sell'
+      await api.post(endpoint, {
         asset: selectedCrypto.symbol,
-        type: tradeType,
         amount: parseFloat(tradeAmount),
       })
       setSelectedCrypto(null)
       fetchPrices()
+      fetchUserBalance()
     } catch (err) {
       setTradeError(err.response?.data?.message || 'Transaction failed')
     } finally {
@@ -63,6 +95,9 @@ function DashboardPage({ user, onLogout }) {
         <h1 className="text-2xl font-bold text-green-400">CryptoWallet</h1>
         <div className="flex items-center gap-4">
           <span className="text-gray-400">Welcome, {user?.username}</span>
+          <span className="text-green-400 font-semibold">
+            Balance: ${Number(userBalance).toFixed(2)}
+          </span>
           <button
             onClick={() => setShowChat(!showChat)}
             className="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm"
@@ -99,12 +134,20 @@ function DashboardPage({ user, onLogout }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {prices.map((crypto) => (
               <div key={crypto.symbol} className="bg-gray-800 p-4 rounded-xl">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-2">
                   <span className="text-lg font-bold">{crypto.symbol}</span>
                   <span className="text-green-400 font-semibold">
                     ${crypto.price?.toFixed(2)}
                   </span>
                 </div>
+
+                {/* Show holdings if user owns this crypto */}
+                {cryptoBalances[crypto.symbol] && (
+                  <p className="text-yellow-400 text-sm mb-3">
+                    Holdings: {Number(cryptoBalances[crypto.symbol]).toFixed(6)} {crypto.symbol}
+                  </p>
+                )}
+
                 <div className="flex gap-2">
                   <button
                     onClick={() => openTradeModal(crypto, 'BUY')}

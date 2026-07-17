@@ -8,6 +8,9 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+import com.i2i.CryptoWallet.user.Balance;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -17,6 +20,16 @@ public class AuthController {
 
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> me(HttpServletRequest request) {
+        Long userId = AuthenticatedUser.getUserId(request);
+        return ResponseEntity.ok(authService.getUser(userId));
+    }
+    @GetMapping("/balances")
+    public ResponseEntity<List<Balance>> balances(HttpServletRequest request) {
+        Long userId = AuthenticatedUser.getUserId(request);
+        return ResponseEntity.ok(authService.getBalances(userId));
     }
 
     @PostMapping("/register")
