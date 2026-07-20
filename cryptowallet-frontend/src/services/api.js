@@ -1,14 +1,14 @@
 import axios from 'axios'
 
-// Base API configuration
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  // baseURL sonundaki '/api' kısmı kaldırıldı.
+  // Böylece bileşenlerde api.post('/api/auth/login') yapıldığında adres doğru birleşecek.
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// Add token to every request automatically
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {

@@ -4,6 +4,7 @@ import DashboardPage from './pages/DashboardPage'
 
 function App() {
   const [user, setUser] = useState(null)
+  const [darkMode, setDarkMode] = useState(true)
 
   const handleLogin = (userData) => {
     setUser(userData)
@@ -15,13 +16,20 @@ function App() {
   }
 
   return (
-    <>
-      {user ? (
-        <DashboardPage user={user} onLogout={handleLogout} />
-      ) : (
-        <LoginPage onLogin={handleLogin} />
-      )}
-    </>
+    <div className={darkMode ? 'dark' : ''}>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+        {user ? (
+          <DashboardPage
+            user={user}
+            onLogout={handleLogout}
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+          />
+        ) : (
+          <LoginPage onLogin={handleLogin} darkMode={darkMode} setDarkMode={setDarkMode} />
+        )}
+      </div>
+    </div>
   )
 }
 

@@ -1,32 +1,39 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { Send, Bot, User } from 'lucide-react'
 import api from '../services/api'
 
-function ChatPage() {
+function ChatPage({ darkMode }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Hello! I am your CryptoWallet AI assistant. You can ask me about your account, market trends, or your transaction history.',
+      content: 'Hello! I am your CryptoWallet AI assistant. Ask me anything about your portfolio, market trends, or your transaction history.',
     },
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const bottomRef = useRef(null)
+
+  // Auto scroll to bottom
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const sendMessage = async () => {
     if (!input.trim()) return
 
     const userMessage = { role: 'user', content: input }
-    setMessages((prev) => [...prev, userMessage])
+    setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
 
     try {
       const response = await api.post('/ai/query', { query: input })
-      setMessages((prev) => [
+      setMessages(prev => [
         ...prev,
         { role: 'assistant', content: response.data.response },
       ])
     } catch (err) {
-      setMessages((prev) => [
+      setMessages(prev => [
         ...prev,
         { role: 'assistant', content: 'Sorry, I am unable to respond right now. Please try again.' },
       ])
@@ -36,21 +43,34 @@ function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-900 text-white">
+    <div className="flex flex-col h-full">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, index) => (
           <div
             key={index}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
-            <div
-              className={`max-w-xs lg:max-w-md p-3 rounded-xl text-sm ${
-                msg.role === 'user'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-700 text-gray-100'
-              }`}
-            >
+            {/* Avatar */}
+            <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center ${
+              msg.role === 'user'
+                ? 'bg-indigo-500'
+                : 'bg-emerald-500'
+            }`}>
+              {msg.role === 'user'
+                ? <User size={14} className="text-white" />
+                : <Bot size={14} className="text-white" />
+              }
+            </div>
+
+            {/* Bubble */}
+            <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+              msg.role === 'user'
+                ? 'bg-indigo-500 text-white rounded-tr-sm'
+                : darkMode
+                  ? 'bg-slate-800 text-slate-100 rounded-tl-sm'
+                  : 'bg-slate-100 text-slate-800 rounded-tl-sm'
+            }`}>
               {msg.content}
             </div>
           </div>
@@ -58,31 +78,48 @@ function ChatPage() {
 
         {/* Loading indicator */}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-700 p-3 rounded-xl text-sm text-gray-400">
-              Thinking...
+          <div className="flex gap-2">
+            <div className="w-7 h-7 rounded-full bg-emerald-500 flex-shrink-0 flex items-center justify-center">
+              <Bot size={14} className="text-white" />
+            </div>
+            <div className={`px-3 py-2 rounded-2xl rounded-tl-sm text-sm ${
+              darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
+            }`}>
+              <span className="inline-flex gap-1">
+                <span className="animate-bounce" style={{ animationDelay: '0ms' }}>•</span>
+                <span className="animate-bounce" style={{ animationDelay: '150ms' }}>•</span>
+                <span className="animate-bounce" style={{ animationDelay: '300ms' }}>•</span>
+              </span>
             </div>
           </div>
         )}
+
+        <div ref={bottomRef} />
       </div>
 
       {/* Input area */}
-      <div className="bg-gray-800 p-4 flex gap-3">
-        <input
-          type="text"
-          placeholder="Ask me anything about your portfolio..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          className="flex-1 bg-gray-700 text-white p-3 rounded-lg outline-none focus:ring-2 focus:ring-green-400"
-        />
-        <button
-          onClick={sendMessage}
-          disabled={loading || !input.trim()}
-          className="bg-green-500 hover:bg-green-600 px-6 py-3 rounded-lg font-semibold disabled:opacity-50"
-        >
-          Send
-        </button>
+      <div className={`p-3 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+        <div className={`flex gap-2 items-center rounded-xl px-3 py-2 ${
+          darkMode ? 'bg-slate-800' : 'bg-slate-100'
+        }`}>
+          <input
+            type="text"
+            placeholder="Ask about your portfolio..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+            className={`flex-1 bg-transparent outline-none text-sm ${
+              darkMode ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'
+            }`}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+            className="w-7 h-7 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 flex items-center justify-center transition-colors flex-shrink-0"
+          >
+            <Send size={13} className="text-white" />
+          </button>
+        </div>
       </div>
     </div>
   )
